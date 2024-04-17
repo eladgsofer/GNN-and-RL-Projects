@@ -48,15 +48,15 @@ if __name__ == '__main__':
 
     model.train()
 
-    pbar = tqdm(total=data_size)
+    pbar = tqdm.tqdm(total=data_size)
     for epoch in range(200):
         avg_loss = 0
         pbar.set_description(f'Epoch {epoch:02d}')
 
         for batch in loader:
-            x, A, y = batch
+            x, edge_index, y = batch.x, batch.edge_index, batch.y
             optimizer.zero_grad()
-            y_hat = model(x, A)
+            y_hat = model(x, edge_index)
             loss = F.l1_loss(y_hat, y)
             loss.backward()
             avg_loss+=loss.item()
