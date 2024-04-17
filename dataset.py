@@ -27,18 +27,17 @@ class delieveries_dataset():
             As[i] = self.random_adjacency(self.num_of_nodes, sum=self.deliver_probability,
                                           edge_precentage=self.edge_percentage)
             # show_graph_with_labels(As[i])
-            d = calculate_deleiveries(As[i], X)
+            d[i] = calculate_deleiveries(As[i], X)
             if i % 100 == 0:
-                print(i, d)
+                print(i, d[i])
         print("done")
         self.X = torch.tensor(X).to(device)
         self.A_list = torch.tensor(As).to(device)
         self.d_list = torch.tensor(d).to(device)
         self.dataset = [0] * self.dataset_size
         for i in range(self.dataset_size):
-            edges, weights = from_adjacency_tolist(As[i])
-            edges = torch.tensor(edges)
-            self.dataset[i] = Data(x=self.X, edge_index=edges.t().contiguous())
+            edges, weights = from_adjacency_tolist(self.A_list[i])
+            self.dataset[i] = Data(x=self.X, edge_index=edges.t().contiguous(),y=self.d_list[i])
             self.dataset[i].weights = weights
 
     def random_adjacency(self, size, sum, edge_precentage):
