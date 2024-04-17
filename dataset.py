@@ -6,7 +6,7 @@ import torch
 
 from torch_geometric.data import Data
 from torch_geometric.loader import DataLoader
-from utils import calculate_deleiveries,show_graph_with_labels
+from utils import calculate_deleiveries,show_graph_with_labels,from_adjacency_tolist
 
 class delieveries_dataset():
     def __init__(self, num_of_nodes=50, dataset_size=1000, deliver_probability=0.95, edge_percentage=0.2):
@@ -36,11 +36,9 @@ class delieveries_dataset():
         self.d_list = torch.tensor(d).to(device)
         self.dataset = [0] * self.dataset_size
         for i in range(self.dataset_size):
-            rows, cols = np.where(As[i] != 0)
-            edges = [[rows.tolist()[j], cols.tolist()[j]] for j in range(len(rows.tolist()))]
+            edges, weights = from_adjacency_tolist(As[i])
             edges = torch.tensor(edges)
-            weights = [As[i][rows,cols].tolist()[j] for j in range(len(rows.tolist()))]
-            self.dataset[i] = Data(x=X, edge_index=edges.t().contiguous())
+            self.dataset[i] = Data(x=self.X, edge_index=edges.t().contiguous())
             self.dataset[i].weights = weights
 
     def random_adjacency(self, size, sum, edge_precentage):

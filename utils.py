@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 from matplotlib import pyplot as plt
+import torch
 def calculate_deleiveries(A,X):
 
     best_routes = np.zeros([len(A),len(A)])
@@ -31,11 +32,21 @@ def vectorised_BFS(A,start_ind):
 def best_one_hop(A,v):
      possiblities_mat = A.T * v
      return np.max(possiblities_mat,axis=1)
+
+# numpy to numpy
 def from_adjacency_tolist(A):
     rows, cols = np.where(A != 0)
     edges = [[rows.tolist()[i], cols.tolist()[i]] for i in range(len(rows.tolist()))]
     weights = [A[rows, cols].tolist()[i] for i in range(len(rows.tolist()))]
     return edges, weights
+
+
+# torch/numpy to torch
+def from_list_to_adjacency(size, edges,weights):
+    A = torch.zeros([size,size])
+    for idx,(i,j) in enumerate(edges):
+        A[i,j] = weights[idx]
+    return A
 def show_graph_with_labels(adjacency_matrix):
     rows, cols = np.where(adjacency_matrix != 0)
     weighted_edges = [(rows.tolist()[i], cols.tolist()[i],round(adjacency_matrix[rows,cols].tolist()[i],2))for i in range(len(rows.tolist()))]
