@@ -2,11 +2,15 @@ import numpy as np
 from matplotlib import pyplot as plt
 import networkx as nx
 import torch
+from torch_geometric.data import Data
+from torch_geometric.loader import DataLoader
 def calculate_deleiveries(A,X):
+
     best_routes = np.zeros([len(A),len(A)])
-    # print(vectorised_BFS(A,0))
     # calculate best routes from every source to every destination
     for i in range(len(A)):
+        # The BFS algorithm calculates the best routes from every starting point. It does this jointly for all
+        # destination nodes using vectorized notation.
         best_routes[i] = vectorised_BFS(A,i)
     return np.sum(best_routes*X)
 
@@ -18,8 +22,9 @@ def vectorised_BFS(A,start_ind):
     pathing_improved = True
     while pathing_improved:
         new_routes = best_one_hop(A, current_routes)
-        # print(current_routes[0] - new_routes[0])
-        if (current_routes[np.arange(len(A)) != start_ind] == new_routes[np.arange(len(A)) != start_ind]).all():
+        # accounting for small numerical floating point errors if the new paths are similar to the old path then we have
+        # not improved the paths at all, and we can exit the BFS
+        if ((current_routes[np.arange(len(A)) != start_ind] - new_routes[np.arange(len(A)) != start_ind])**2).sum() < 10**(-8):
             pathing_improved = False
         current_routes = np.maximum(current_routes, new_routes)
         # print(current_routes)
@@ -62,13 +67,20 @@ class delieveries_dataset():
         for i in range(self.dataset_size):
             As[i] = self.random_adjacency(self.num_of_nodes,sum=self.deliver_probability,edge_precentage=self.edge_percentage)
             # show_graph_with_labels(As[i])
-            d = calculate_deleiveries(self.As[i],X)
+            d = calculate_deleiveries(As[i],X)
             if i%100 == 0:
-                print(i,self.d)
+                print(i,d)
         print("done")
         self.X      = torch.tensor(X).to(device)
         self.A_list = torch.tensor(As).to(device)
         self.d_list = torch.tensor(d).to(device)
+        self.dataset = [0]*self.dataset_size
+        for i in range(self.dataset_size):
+            rows, cols = np.where(As[i] != 0)
+            edges = [[rows.tolist()[i], cols.tolist()[i]] for i in range(len(rows.tolist()))]
+            edges = torch.tensor(edges)
+            self.dataset[i] = Data(x=X, edge_index=edges.t().contiguous())
+
 
 
     def random_adjacency(self, size, sum, edge_precentage):
@@ -127,5 +139,7 @@ class delieveries_dataset():
 
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    D = delieveries_dataset(num_of_nodes=50,dataset_size=10000,edge_percentage=0.05)
+    D = delieveries_dataset(num_of_nodes=20,dataset_size=1000,edge_percentage=0.2)
     D.generate_dataset(device=device)
+    loader = DataLoader(D.dataset, batch_size=32)
+    print("success")
