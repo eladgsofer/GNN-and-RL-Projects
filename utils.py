@@ -7,21 +7,21 @@ def calculate_deleiveries(A,X):
     best_routes = np.zeros([len(A),len(A)])
     # calculate best routes from every source to every destination
     for i in range(len(A)):
-        # The BFS algorithm calculates the best routes from every starting point. It does this jointly for all
+        # The Bellman Ford algorithm calculates the best routes from every starting point. It does this jointly for all
         # destination nodes using vectorized notation.
-        best_routes[i] = vectorised_BFS(A,i)
+        best_routes[i] = vectorised_bellman_ford(A, i)
     return np.sum(best_routes*X)
 
 
 
-def vectorised_BFS(A,start_ind):
+def vectorised_bellman_ford(A,start_ind):
     current_routes = np.zeros(len(A))
     current_routes[start_ind] = 1
     pathing_improved = True
     while pathing_improved:
         new_routes = best_one_hop(A, current_routes)
         # accounting for small numerical floating point errors if the new paths are similar to the old path then we have
-        # not improved the paths at all, and we can exit the BFS
+        # not improved the paths at all, and we can exit the algorithm
         if ((current_routes[np.arange(len(A)) != start_ind] - new_routes[np.arange(len(A)) != start_ind])**2).sum() < 10**(-8):
             pathing_improved = False
         current_routes = np.maximum(current_routes, new_routes)
