@@ -11,11 +11,12 @@ from torch_geometric.loader import DataLoader
 from utils import calculate_deleiveries,show_graph_with_labels,from_adjacency_tolist
 
 class delieveries_dataset():
-    def __init__(self, num_of_nodes=50, dataset_size=1000, deliver_probability=0.95, edge_percentage=0.2):
+    def __init__(self, num_of_nodes=50, dataset_size=1000, deliver_probability=0.95, edge_percentage=0.2,epsilon=0.000001):
         self.num_of_nodes = num_of_nodes
         self.dataset_size = dataset_size
         self.deliver_probability = deliver_probability
         self.edge_percentage = edge_percentage
+        self.epsilon = epsilon
 
     def generate_dataset(self, constant_x=True, device='cpu'):
         # generate X(packets) matrix
@@ -58,7 +59,7 @@ class delieveries_dataset():
             current_sum = A.sum()
             number_of_edges = np.count_nonzero(A)
             target_sum = sum * number_of_edges
-            A = np.clip(A, 0, 1)
+            A = np.clip(A, 0, 1-self.epsilon)
             A = A * (target_sum / current_sum)
         return A
 
