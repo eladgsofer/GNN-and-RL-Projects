@@ -5,6 +5,8 @@ import tqdm
 import torch
 
 from torch_geometric.data import Data
+from torch_geometric.utils import to_dense_adj
+
 from torch_geometric.loader import DataLoader
 from utils import calculate_deleiveries,show_graph_with_labels,from_adjacency_tolist
 
@@ -39,6 +41,7 @@ class delieveries_dataset():
             edges, weights = from_adjacency_tolist(self.A_list[i])
             self.dataset[i] = Data(x=self.X, edge_index=edges.t().contiguous(),y=self.d_list[i])
             self.dataset[i].weights = weights
+            self.dataset[i].adjacency = self.A_list[i]
 
     def random_adjacency(self, size, sum, edge_precentage):
         mask_matrix = self.random_matrix(size, sym=True)
