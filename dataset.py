@@ -39,7 +39,7 @@ class delieveries_dataset():
         self.d_list = torch.tensor(d).to(device)
         self.dataset = [0] * self.dataset_size
         for i in range(self.dataset_size):
-            edges, weights = from_adjacency_tolist(self.A_list[i])
+            edges, weights = from_adjacency_tolist(self.A_list[i],device)
             self.dataset[i] = Data(x=self.X, edge_index=edges.t().contiguous(),y=self.d_list[i])
             self.dataset[i].weights = weights
             self.dataset[i].adjacency = self.A_list[i]

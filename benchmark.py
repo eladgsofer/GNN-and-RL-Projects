@@ -21,6 +21,8 @@ def vectorized_floyd_warshall(A,device):
         new_paths = output_paths[k,:]
         new_paths_mat = new_paths.repeat(mat_size,1)
         output_paths[mask] = new_paths_mat[mask]
+        if torch.any(output_paths<0):
+            print("negative pathing!")
         # set new lengths
         output_lengths = torch.maximum(output_lengths,best_paths_for_subgraph_k)
 
@@ -31,12 +33,16 @@ def get_path(pathings_mat,start_ind,end_ind,device):
     path = [torch.tensor(end_ind,device=device,dtype=torch.int)]
     iter = 0
     while end_ind != start_ind:
+        if end_ind<0:
+            print("negative?")
         end_ind = pathings_mat[start_ind,end_ind]
         # print(start_ind,end_ind)
         path.append(end_ind)
         iter = iter+1
-        # if iter > 30:
-        #     return -1,path
+        if iter > len(pathings_mat):
+            print("error path too long...")
+            exit()
+            # return path
     return path
 
 def floyd_warshall_internet(A): # from geeks to geeks
@@ -61,6 +67,7 @@ def best_pathings(A,paths_mat,device):
     pathings_tensor = torch.ones([mat_size,mat_size,mat_size],device=device)
     for start_ind in range(mat_size):
         for end_ind in range(mat_size):
+            print(start_ind,end_ind)
             if start_ind == end_ind:
                 continue
             path = get_path(paths_mat,start_ind,end_ind,device)
@@ -69,15 +76,34 @@ def best_pathings(A,paths_mat,device):
             for step,current_node in enumerate(path[::-1]):
                 pathings_tensor[start_ind,end_ind][step] = A[last_node,current_node]
     return pathings_tensor
+def delivery_loss(A,paths_mat,X,device):
+    mat_size = len(A)
+    loss_sum = torch.zeros(1,device=device)
+
+    for start_ind in range(mat_size):
+        for end_ind in range(mat_size):
+            if start_ind == end_ind:
+                continue
+            loss_prod = torch.ones(1,device=device)
+            path = get_path(paths_mat, start_ind, end_ind, device)
+            last_node = path[-1]
+            path = path[:-1]
+            for step, current_node in enumerate(path[::-1]):
+                loss_prod = loss_prod* A[last_node, current_node]
+                last_node = current_node
+
+            loss_sum = loss_sum+ loss_prod*X[start_ind,end_ind]
+    return loss_sum
 def projection(A,target_sum,epsilon):
-    A = target_sum*(torch.abs(A)/torch.sum(A))
+    if target_sum<torch.sum(A):
+        A = target_sum*(torch.abs(A)/torch.sum(A))
     return torch.clip(A,0,1-epsilon)
 if __name__ == '__main__':
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    D = delieveries_dataset(num_of_nodes=20, dataset_size=100, edge_percentage=0.1)
+    device = torch.device('cpu')
+    D = delieveries_dataset(num_of_nodes=25, dataset_size=100, edge_percentage=0.15,deliver_probability=0.6)
     D.generate_dataset(device=device)
     mat_shape = D.A_list[0].shape
-
     output_paths, output_lengths = vectorized_floyd_warshall(D.A_list[0],device)
     test_algorithm = floyd_warshall_internet(D.A_list[0])
     print("floyd warshall initial ",(output_lengths*D.X).sum())
@@ -89,41 +115,27 @@ if __name__ == '__main__':
     for i in range(iterations):
         print("optimizing paths")
         A = A_with_grad.detach().clone()
+        show_graph_with_labels(A)
         output_paths, deliveries = vectorized_floyd_warshall(A,device)
-        print((deliveries * D.X).sum())
-        A_with_grad = D.A_list[0].clone().detach().requires_grad_(True).to(device)
-        pathings_tensor = best_pathings(A_with_grad,output_paths,device)
-
+        print("reoptimizing paths, new paths deliveries",(deliveries * D.X).sum().item())
+        A_with_grad = A.clone().detach().requires_grad_(True).to(device)
+        # pathings_tensor = best_pathings(A,output_paths,device)
+        print("new pathings")
         # optimizer
-        optimizer = torch.optim.Adam([A_with_grad],lr=0.1)
+        # optimizer = torch.optim.Adam([A_with_grad],lr=0.01)
+        torch.autograd.set_detect_anomaly(True)
         for j in range(optimization_iters):
-            A_with_grad.requires_grad_(True)
-            optimizer.zero_grad() #zero grad
+            A_with_grad = A_with_grad.clone().detach().requires_grad_(True).to(device)
+
             # loss
-            pathings_tensor = best_pathings(A_with_grad, output_paths, device)
-            deliveries_of_paths = torch.prod(pathings_tensor,dim=2)
-            delivery_loss = -torch.sum(deliveries_of_paths*D.X)
+            loss = delivery_loss(A_with_grad,output_paths,D.X,device)
+            grad = torch.autograd.grad(loss,A_with_grad)[0]
+            A_with_grad = A_with_grad + 0.001*grad
 
-            delivery_loss.backward()
-            optimizer.step()
-            A_with_grad = A_with_grad.detach()
             A_with_grad = projection(A_with_grad,D.deliver_probability*torch.count_nonzero(A_with_grad),D.epsilon)
+
+
             _, deliveries = vectorized_floyd_warshall(A_with_grad.detach().clone(), device)
-            # print(deliveries)
-            print((deliveries*D.X).sum())
+            print((deliveries*D.X).sum().item(),loss.item())
 
-
-
-    # for m in range(50):
-    #     print("new matrix")
-    #     output_paths, output_lengths = vectorized_floyd_warshall(D.A_list[m], device)
-    #     for i in range(16):
-    #         for j in range(16):
-    #             print("starting again")
-    #             s,t = get_path(output_paths, i, j, device)
-    #             if s==-1:
-    #                 show_graph_with_labels(D.A_list[m].cpu().numpy())
-    #                 print(t)
-    #                 output_paths, output_lengths = vectorized_floyd_warshall(D.A_list[m], device)
-    #             print(t)
     print(D.d_list[0])

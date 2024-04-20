@@ -34,10 +34,10 @@ def best_one_hop(A,v):
      return np.max(possiblities_mat,axis=1)
 
 # torch to torch
-def from_adjacency_tolist(A):
+def from_adjacency_tolist(A,device):
     rows, cols = torch.where(A != 0)
-    edges = torch.tensor([[rows.tolist()[i], cols.tolist()[i]] for i in range(len(rows.tolist()))])
-    weights = torch.tensor([A[rows, cols][i] for i in range(len(rows.tolist()))])
+    edges = torch.tensor([[rows.tolist()[i], cols.tolist()[i]] for i in range(len(rows.tolist()))],device=device)
+    weights = torch.tensor([A[rows, cols][i] for i in range(len(rows.tolist()))],device=device)
     return edges, weights
 
 
@@ -57,5 +57,5 @@ def show_graph_with_labels(adjacency_matrix):
     pos = nx.spring_layout(gr)
     nx.draw_networkx(gr, pos)
     for edge in gr.edges(data='weight'):
-        nx.draw_networkx_edges(gr, pos, edgelist=[edge], width=2*edge[2]**2)
+        nx.draw_networkx_edges(gr, pos, edgelist=[edge], width=(2*edge[2])**2)
     plt.show()
